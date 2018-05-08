@@ -81,7 +81,6 @@ class CommandAuthenticateBlast
   printResults: () => #(error) =>
     #return @die error if error?
     elapsedTime = @benchmark.elapsed()
-    #console.log elapsedTime
     averagePerSecond = (_.size @statusCodes) / (elapsedTime / 1000)
     messageLoss = 1 - (_.size(@statusCodes) / (@cycles * @numberOfMessages))
 
