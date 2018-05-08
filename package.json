@@ -1,0 +1,58 @@
+{
+  "name": "meshblu-benchmark",
+  "version": "1.0.0",
+  "description": "Benchmark tool for meshblu",
+  "main": "index.js",
+  "scripts": {
+    "test": "istanbul cover _mocha -- -R spec"
+  },
+  "bin": {
+    "meshblu-benchmark": "./command.js",
+    "meshblu-benchmark-message-webhook": "./command-message-webhook.js",
+    "meshblu-benchmark-authenticate-blast": "./command-authenticate-blast.js",
+    "meshblu-benchmark-subscription-list": "./command-subscription-list.js",
+    "mb": "./command.js",
+    "mb-message-webhook": "./command-message-webhook.js",
+    "mb-authenticate-blast": "./command-authenticate-blast.js",
+    "mb-subscription-list": "./command-subscription-list.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/octoblu/meshblu-benchmark.git"
+  },
+  "keywords": [
+    "meshblu",
+    "benchmark"
+  ],
+  "author": "Octoblu, Inc.",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/octoblu/meshblu-benchmark/issues"
+  },
+  "homepage": "https://github.com/octoblu/meshblu-benchmark#readme",
+  "devDependencies": {
+    "chai": "^3.3.0",
+    "coffee-coverage": "^0.6.3",
+    "coffee-script": "^1.12.7",
+    "istanbul": "^0.3.21",
+    "mocha": "^2.3.3",
+    "mocha-istanbul": "^0.2.0",
+    "sinon": "^1.17.1",
+    "sinon-chai": "^2.8.0"
+  },
+  "dependencies": {
+    "async": "^1.4.2",
+    "cli-table": "^0.3.1",
+    "colors": "^1.1.2",
+    "commander": "^2.15.1",
+    "debug": "^2.2.0",
+    "lodash": "^3.10.1",
+    "meshblu-config": "^3.1.1",
+    "meshblu-http": "^3.5.4",
+    "meshblu-websocket": "^2.2.0",
+    "meshblu-xmpp": "^1.4.5",
+    "request": "^2.65.0",
+    "simple-benchmark": "^1.0.0",
+    "uuid": "^2.0.1"
+  }
+}
