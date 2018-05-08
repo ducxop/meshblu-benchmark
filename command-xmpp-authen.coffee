@@ -63,7 +63,7 @@ class CommandAuthenticateBlast
         return
       @elapsedTimes.push benchmark.elapsed()
       #console.log 'Message ' + i + ' sent'
-      @statusCodes.push 'OK' #response.statusCode
+      @statusCodes.push 'OK'
       #callback()
 
   cycle: (i, callback) =>
