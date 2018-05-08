@@ -4,26 +4,25 @@ async         = require 'async'
 uuid          = require 'uuid'
 colors        = require 'colors'
 MeshbluConfig = require 'meshblu-config'
-#debug         = require('debug')('meshblu-benchmark:authenticate-blast')
 Benchmark     = require 'simple-benchmark'
 request       = require 'request'
 url           = require 'url'
 Table         = require 'cli-table'
 MeshbluXmpp   = require 'meshblu-xmpp'
 
-class CommandXmppAuthen
+class CommandXmppSend
   parseOptions: =>
     commander
       .option '-c, --cycles [n]', 'number of cycles to run (defaults to 1)', @parseInt, 1
-      .option '-n, --number-of-messages [n]', 'Number of parallel request per second (defaults to 10)', @parseInt, 10
-      .option '-s, --step [n]', 'display step', @parseInt, 100
+      .option '-n, --number-of-connection [n]', 'Number of parallel connection (defaults to 1000)', @parseInt, 1000
+      .option '-s, --step [n]', 'display step', @parseInt, 200
       .parse process.argv
 
-    {@step,@numberOfMessages,@cycles} = commander
+    {@step,@numberOfConnection,@cycles} = commander
 
   run: ->
     @parseOptions()
-
+    
     @statusCodes = []
     @elapsedTimes = []
     @elapsedTimes2 = []
@@ -39,6 +38,8 @@ class CommandXmppAuthen
       token: '6fa96222fd6a0c519ed8c73e053ff36d17e02775'
     @conn = new MeshbluXmpp @config
     @conn2 = new MeshbluXmpp @config2
+    @conn.connect (error) =>
+      console.log 'Device 1 connected'
     nr = 0
     @conn2.on 'message', (message) =>
       if ++nr%@step==0 
@@ -47,24 +48,21 @@ class CommandXmppAuthen
         console.log 'Receiving first msg...'
         @benchmark2 = new Benchmark label: 'receive msg'
       @elapsedTimes2.push @benchmark2.elapsed()
-      if nr == @cycles * @numberOfMessages
+      if nr == @cycles * @numberOfConnection
         @printResults2()
-      
-    @conn.connect (error) =>
-      @conn2.connect (error) => 
-        console.log 'Connected! Start sending msg ...'
-        @benchmark = new Benchmark label: 'send msg'
-        @ns = 0
-        async.timesSeries @cycles, @cycle, @printResults
+    # # # # # # # # # # # # # # # # # # # # # # #
+    @ns = 0
+    @benchmark = new Benchmark label: 'connect'
+    async.timesSeries @cycles, @cycle, @printResults
 
-  authenticate: (i, callback) =>
+  cycle: (i, callback) =>
+    async.times @numberOfConnection, @authenticate, callback
+
+  authenticate: (i, callback) =>  
     benchmark = new Benchmark label: 'sending'
-    message = 
-        "devices": [@conn2.uuid],
-        "payload": "new message from " + i
-    @conn.message message, (error) =>
+    @conn2.connect (error) =>
       if ++@ns%@step==0 
-        console.log 'Sending' + @ns
+        console.log 'device 2 connected: ' + @ns
       @elapsedTimes.push benchmark.elapsed()
       if error?
         console.log error.response
@@ -72,10 +70,7 @@ class CommandXmppAuthen
       else
         @statusCodes.push 'OK'
       #console.log 'Message ' + i + ' sent'
-      callback()
-
-  cycle: (i, callback) =>
-    async.times @numberOfMessages, @authenticate, callback
+      callback()    
 
   die: (error) =>
     if 'Error' == typeof error
@@ -88,13 +83,22 @@ class CommandXmppAuthen
 
   printResults: () => #(error) =>
     #return @die error if error?
+    message = 
+        "devices": [@conn2.uuid],
+        "payload": "new message from 1"
+    @conn.message message, (error) =>      
+      if error?
+        console.log error.response
+      else
+        console.log 'msg sent!'
+
     elapsedTime = @benchmark.elapsed()
     averagePerSecond = (_.size @statusCodes) / (elapsedTime / 1000)
-    messageLoss = 1 - (_.size(@statusCodes) / (@cycles * @numberOfMessages))
+    messageLoss = 1 - (_.size(@statusCodes) / (@cycles * @numberOfConnection))
 
     generalTable = new Table
     generalTable.push
-      'total msg send'       : "#{@numberOfMessages * @cycles}"
+      'total connection'     : "#{@numberOfConnection * @cycles}"
     ,
       'took'                 : "#{elapsedTime}ms"
     ,
@@ -115,28 +119,22 @@ class CommandXmppAuthen
       @nthPercentile(90, @elapsedTimes)
     ]
 
-    console.log "Sending Results:"
+    console.log "Connecting Results:"
     console.log generalTable.toString()
     console.log percentileTable.toString()
     console.log "\n"
     
   printResults2: () => #(error) =>
-    #return @die error if error?
     elapsedTime = @benchmark2.elapsed()
-    averagePerSecond = (@cycles * @numberOfMessages) / (elapsedTime / 1000)
-    #messageLoss = 1 - (_.size(@statusCodes) / (@cycles * @numberOfMessages))
+    averagePerSecond = (@cycles * @numberOfConnection) / (elapsedTime / 1000)
 
     generalTable = new Table
     generalTable.push
-      'total msg receive'    : "#{@numberOfMessages * @cycles}"
+      'total msg receive'    : "#{@numberOfConnection * @cycles}"
     ,
       'took'                 : "#{elapsedTime}ms"
     ,
       'average per second'   : "#{averagePerSecond}/s"
-    #,
-    #  'received status'      : "#{_.uniq @statusCodes}"
-    #,
-    #  'message error'        : "#{messageLoss * 100}%"
 
     percentileTable = new Table
       head: ['10th', '25th', '50th', '75th', '90th']
@@ -163,4 +161,4 @@ class CommandXmppAuthen
 
     return array[Math.floor index]
 
-new CommandXmppAuthen().run()
+new CommandXmppSend().run()

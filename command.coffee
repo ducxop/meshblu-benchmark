@@ -6,6 +6,7 @@ class Command
     commander
       .version packageJSON.version
       .command 'xmpp-authen', 'benchmark xmpp authen'
+      .command 'xmpp-send', 'benchmark xmpp send msg'
       .command 'message-webhook', 'register webhook and benchmark round-trip'
       .command 'authenticate-blast', 'blast the authenticate service'
       .command 'subscription-list', 'benchmark the subscription list'
