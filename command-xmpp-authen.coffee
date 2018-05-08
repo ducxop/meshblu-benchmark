@@ -16,15 +16,17 @@ class CommandAuthenticateBlast
     commander
       .option '-c, --cycles [n]', 'number of cycles to run (defaults to 1)', @parseInt, 1
       .option '-n, --number-of-messages [n]', 'Number of parallel request per second (defaults to 10)', @parseInt, 10
+      .option '-s, --step [n]', 'display step', @parseInt, 100
       .parse process.argv
 
-    {@numberOfMessages,@cycles} = commander
+    {@step,@numberOfMessages,@cycles} = commander
 
   run: ->
     @parseOptions()
 
     @statusCodes = []
     @elapsedTimes = []
+    @elapsedTimes2 = []
     @config = 
       hostname: '192.168.105.221'
       port: 5222
@@ -39,32 +41,38 @@ class CommandAuthenticateBlast
     @conn2 = new MeshbluXmpp @config2
     nr = 0
     @conn2.on 'message', (message) =>
-      if ++nr%50==0 
-        console.log 'Receiceing' + nr
+      if ++nr%@step==0 
+        console.log 'Receiving ' +nr+ ': '+ message.data.payload
+      if nr==1 
+        console.log 'Receiving first msg...'
+        @benchmark2 = new Benchmark label: 'receive msg'
+      @elapsedTimes2.push @benchmark2.elapsed()
       if nr == @cycles * @numberOfMessages
-        console.log 'Received all msg!'
-        @printResults()
+        @printResults2()
       
     @conn.connect (error) =>
       @conn2.connect (error) => 
         console.log 'Connected! Start sending msg ...'
-        @benchmark = new Benchmark label: 'overall'
-        async.timesSeries @cycles, @cycle #, @printResults
+        @benchmark = new Benchmark label: 'send msg'
+        @ns = 0
+        async.timesSeries @cycles, @cycle, @printResults
 
   authenticate: (i, callback) =>
-    benchmark = new Benchmark label: 'xmpp authen'
+    benchmark = new Benchmark label: 'sending'
     message = 
         "devices": [@conn2.uuid],
         "payload": "new message from " + i
-      
     @conn.message message, (error) =>
+      if ++@ns%@step==0 
+        console.log 'Sending' + @ns
+      @elapsedTimes.push benchmark.elapsed()
       if error?
         console.log error.response
-        return
-      @elapsedTimes.push benchmark.elapsed()
+        @statusCodes.push 'Error'
+      else
+        @statusCodes.push 'OK'
       #console.log 'Message ' + i + ' sent'
-      @statusCodes.push 'OK'
-      #callback()
+      callback()
 
   cycle: (i, callback) =>
     async.times @numberOfMessages, @authenticate, callback
@@ -86,15 +94,15 @@ class CommandAuthenticateBlast
 
     generalTable = new Table
     generalTable.push
-      'total request'        : "#{@numberOfMessages * @cycles}"
+      'total msg send'       : "#{@numberOfMessages * @cycles}"
     ,
       'took'                 : "#{elapsedTime}ms"
     ,
       'average per second'   : "#{averagePerSecond}/s"
     ,
-      'received status codes': "#{_.uniq @statusCodes}"
+      'received status'      : "#{_.uniq @statusCodes}"
     ,
-      'message error'         : "#{messageLoss * 100}%"
+      'send error'           : "#{messageLoss * 100}%"
 
     percentileTable = new Table
       head: ['10th', '25th', '50th', '75th', '90th']
@@ -107,7 +115,41 @@ class CommandAuthenticateBlast
       @nthPercentile(90, @elapsedTimes)
     ]
 
-    console.log "\n\nResults:\n"
+    console.log "Sending Results:"
+    console.log generalTable.toString()
+    console.log percentileTable.toString()
+    console.log "\n"
+    
+  printResults2: () => #(error) =>
+    #return @die error if error?
+    elapsedTime = @benchmark2.elapsed()
+    averagePerSecond = (@cycles * @numberOfMessages) / (elapsedTime / 1000)
+    #messageLoss = 1 - (_.size(@statusCodes) / (@cycles * @numberOfMessages))
+
+    generalTable = new Table
+    generalTable.push
+      'total msg receive'    : "#{@numberOfMessages * @cycles}"
+    ,
+      'took'                 : "#{elapsedTime}ms"
+    ,
+      'average per second'   : "#{averagePerSecond}/s"
+    #,
+    #  'received status'      : "#{_.uniq @statusCodes}"
+    #,
+    #  'message error'        : "#{messageLoss * 100}%"
+
+    percentileTable = new Table
+      head: ['10th', '25th', '50th', '75th', '90th']
+
+    percentileTable.push [
+      @nthPercentile(10, @elapsedTimes2)
+      @nthPercentile(25, @elapsedTimes2)
+      @nthPercentile(50, @elapsedTimes2)
+      @nthPercentile(75, @elapsedTimes2)
+      @nthPercentile(90, @elapsedTimes2)
+    ]
+
+    console.log "Receiving Results:"
     console.log generalTable.toString()
     console.log percentileTable.toString()
     
