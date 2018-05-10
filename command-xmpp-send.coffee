@@ -37,10 +37,11 @@ class CommandXmppSend
       uuid: 'a1c383b7-931b-4d74-a109-ce57634f6a25'
       token: '6fa96222fd6a0c519ed8c73e053ff36d17e02775'
     @conn = new MeshbluXmpp @config
-    @conn2 = new MeshbluXmpp @config2
     @conn.connect (error) =>
       console.log 'Device 1 connected'
+    # # # # # # # # # # # # # # # # # # # # # # 
     nr = 0
+    @conn2 = new MeshbluXmpp @config2
     @conn2.on 'message', (message) =>
       if ++nr%@step==0 
         console.log 'Receiving ' +nr+ ': '+ message.data.payload
@@ -48,7 +49,7 @@ class CommandXmppSend
         console.log 'Receiving first msg...'
         @benchmark2 = new Benchmark label: 'receive msg'
       @elapsedTimes2.push @benchmark2.elapsed()
-      if nr == @cycles * @numberOfConnection
+      if nr == @cycles * @numberOfConnection *1
         @printResults2()
     # # # # # # # # # # # # # # # # # # # # # # #
     @ns = 0
@@ -81,16 +82,22 @@ class CommandXmppSend
 
   parseInt: (str) => parseInt str
 
-  printResults: () => #(error) =>
-    #return @die error if error?
+  xmppsend: () =>
     message = 
-        "devices": [@conn2.uuid],
-        "payload": "new message from 1"
-    @conn.message message, (error) =>      
+          "devices": [@conn2.uuid],
+          "payload": "new message from 1"
+    @conn.message message, (error) =>  
       if error?
         console.log error.response
-      else
-        console.log 'msg sent!'
+      # else
+      #   console.log 'msg sent!'
+
+  printResults: () => #(error) =>
+    #return @die error if error?
+    
+    #for num in [5..1]
+    async.times 1, @xmppsend
+          
 
     elapsedTime = @benchmark.elapsed()
     averagePerSecond = (_.size @statusCodes) / (elapsedTime / 1000)

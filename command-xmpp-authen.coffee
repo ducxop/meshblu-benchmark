@@ -38,31 +38,30 @@ class CommandXmppAuthen
       uuid: 'a1c383b7-931b-4d74-a109-ce57634f6a25'
       token: '6fa96222fd6a0c519ed8c73e053ff36d17e02775'
     @conn = new MeshbluXmpp @config
-    @conn2 = new MeshbluXmpp @config2
-    nr = 0
-    @conn2.on 'message', (message) =>
-      if ++nr%@step==0 
-        console.log 'Receiving ' +nr+ ': '+ message.data.payload
-      if nr==1 
-        console.log 'Receiving first msg...'
-        @benchmark2 = new Benchmark label: 'receive msg'
-      @elapsedTimes2.push @benchmark2.elapsed()
-      if nr == @cycles * @numberOfMessages
-        @printResults2()
-      
+    # @conn2 = new MeshbluXmpp @config2
+    # nr = 0
+    # @conn2.on 'message', (message) =>
+    #   if ++nr%@step==0 
+    #     console.log 'Receiving ' +nr+ ': '+ message.data.payload
+    #   if nr==1 
+    #     console.log 'Receiving first msg...'
+    #     @benchmark2 = new Benchmark label: 'receive msg'
+    #   @elapsedTimes2.push @benchmark2.elapsed()
+    #   if nr == @cycles * @numberOfMessages
+    #     @printResults2()
+    @message = 
+      "devices": [@config2.uuid],
+      "payload": "new message"
     @conn.connect (error) =>
-      @conn2.connect (error) => 
-        console.log 'Connected! Start sending msg ...'
-        @benchmark = new Benchmark label: 'send msg'
-        @ns = 0
-        async.timesSeries @cycles, @cycle, @printResults
+    # @conn2.connect (error) => 
+      console.log 'Connected! Start sending msg ...'
+      @benchmark = new Benchmark label: 'send msg'
+      @ns = 0
+      async.timesSeries @cycles, @cycle, @printResults
 
   authenticate: (i, callback) =>
     benchmark = new Benchmark label: 'sending'
-    message = 
-        "devices": [@conn2.uuid],
-        "payload": "new message from " + i
-    @conn.message message, (error) =>
+    @conn.message @message, (error) =>
       if ++@ns%@step==0 
         console.log 'Sending' + @ns
       @elapsedTimes.push benchmark.elapsed()
@@ -119,7 +118,7 @@ class CommandXmppAuthen
     console.log generalTable.toString()
     console.log percentileTable.toString()
     console.log "\n"
-    
+    process.exit 0
   printResults2: () => #(error) =>
     #return @die error if error?
     elapsedTime = @benchmark2.elapsed()
