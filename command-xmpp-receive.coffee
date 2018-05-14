@@ -3,12 +3,9 @@ Meshblu = require 'meshblu-xmpp'
 Benchmark     = require 'simple-benchmark'
 Table         = require 'cli-table'
 async         = require 'async'
-uuid          = require 'uuid'
-colors        = require 'colors'
 _             = require 'lodash'
-request       = require 'request'
-url           = require 'url'
-#"node ./bin/www"
+commander			= require 'commander'
+
 config = 
     hostname: '192.168.105.221',
     port: 5222,
@@ -22,16 +19,45 @@ config2 =
     token: '6fa96222fd6a0c519ed8c73e053ff36d17e02775'
 benchmark = {}
 conn = {}
+nr = 0
 n = 0
 
-myMesh.mConnect conn, config2, (conn)=>
-    console.log 'start receiving:'
-    conn.on 'message', (message) =>
-        benchmark = new Benchmark label: 'receive msg' if ++n == 1
-        #console.log 'Message Received: ', message.data.payload
-        printResults2() if n == 500
+myParseInt = (string, defaultValue) ->
+  int = parseInt(string, 10)
+  if typeof int == 'number'
+    int
+  else
+    defaultValue
 
-printResults2 = () => #(error) =>
+@parseInt = (str) => parseInt str, 10
+
+commander
+	.option '-n, --number-of-connection [n]', 'number of connection (default to 5000)', @parseInt, 5000
+	.option '-s, --step [n]', 'display step (defaults to 1000)', @parseInt, 1000
+	.option '-m, --number-of-msg [n]', 'number of parallel messages (defaults to 5000)', @parseInt, 5000
+	.parse process.argv
+
+{numberOfConnection,step,numberOfMsg} = commander
+
+conn = new Meshblu(config2);
+
+createConnection = (i, callback) ->
+	myMesh.mConnect conn, config2, (conn)=>
+		if ++n%step==0 then console.log "connecting ", n
+		console.log 'start connecting:' if n == 1
+  callback()
+
+async.times numberOfConnection, createConnection, () => 
+#async.times 1000, createConnection, () => 
+	console.log 'start receiving:'
+
+conn.on 'message', (message) =>
+	console.log 'receiving ', nr if ++nr%(step*numberOfMsg)==0
+	benchmark = new Benchmark label: 'receive msg' if nr == 1
+	#console.log 'Message Received: ', message.data.payload
+	printResults() if nr == numberOfMsg * numberOfConnection
+
+printResults = () => #(error) =>
     #return @die error if error?
     elapsedTime = benchmark.elapsed()
     averagePerSecond = n / (elapsedTime / 1000)
@@ -44,10 +70,6 @@ printResults2 = () => #(error) =>
       'took'                 : "#{elapsedTime}ms"
     ,
       'average per second'   : "#{averagePerSecond}/s"
-    #,
-    #  'received status'      : "#{_.uniq @statusCodes}"
-    #,
-    #  'message error'        : "#{messageLoss * 100}%"
 
     percentileTable = new Table
       head: ['10th', '25th', '50th', '75th', '90th']

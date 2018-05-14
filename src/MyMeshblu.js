@@ -6,7 +6,7 @@ var panic = function(error){
 }
 
 var mConnect = (conn, config, callback)=>{
-  conn = new Meshblu(config);
+  //conn = new Meshblu(config);
   // Message handler
 //   conn.on('message', function(message){
 //     //console.log('Message Received: ', message);
@@ -15,8 +15,9 @@ var mConnect = (conn, config, callback)=>{
     if (error) {
       panic(error)
     }
-    console.log('Connected!')
-    callback(conn)
+    if (typeof callback === 'function')
+      //console.log('Connected: ', config.uuid)
+      callback(conn) 
   })
 }
 exports.mConnect = mConnect

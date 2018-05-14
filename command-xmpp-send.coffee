@@ -1,12 +1,9 @@
 _             = require 'lodash'
 commander     = require 'commander'
 async         = require 'async'
-uuid          = require 'uuid'
 colors        = require 'colors'
 MeshbluConfig = require 'meshblu-config'
 Benchmark     = require 'simple-benchmark'
-request       = require 'request'
-url           = require 'url'
 Table         = require 'cli-table'
 MeshbluXmpp   = require 'meshblu-xmpp'
 
@@ -14,15 +11,16 @@ class CommandXmppSend
   parseOptions: =>
     commander
       .option '-c, --cycles [n]', 'number of cycles to run (defaults to 1)', @parseInt, 1
-      .option '-n, --number-of-connection [n]', 'Number of parallel connection (defaults to 1000)', @parseInt, 1000
-      .option '-s, --step [n]', 'display step', @parseInt, 200
+      .option '-n, --number-of-connection [n]', 'Number of parallel connections (defaults to 1000)', @parseInt, 1000
+      .option '-s, --step [n]', 'display step (defaults to 200)', @parseInt, 200
+      .option '-m, --number-of-msg [n]', 'number of parallel messages (defaults to 1)', @parseInt, 1
+      .option '-o, --only-send'
       .parse process.argv
 
-    {@step,@numberOfConnection,@cycles} = commander
+    {@step,@numberOfConnection,@cycles,@onlySend,@numberOfMsg} = commander
 
   run: ->
     @parseOptions()
-    
     @statusCodes = []
     @elapsedTimes = []
     @elapsedTimes2 = []
@@ -36,25 +34,33 @@ class CommandXmppSend
       port: 5222
       uuid: 'a1c383b7-931b-4d74-a109-ce57634f6a25'
       token: '6fa96222fd6a0c519ed8c73e053ff36d17e02775'
-    @conn = new MeshbluXmpp @config
-    @conn.connect (error) =>
-      console.log 'Device 1 connected'
+    
+    @message = 
+      "devices": [@config2.uuid],
+      "payload": "new message ~"
+    if @onlySend
+      console.log 'only send'
+      @conn = new MeshbluXmpp @config
+      @conn.connect (error) =>
+        console.log 'Device 1 connected'
+        async.times @numberOfMsg, @xmppsend, () => process.exit 0
+    else
     # # # # # # # # # # # # # # # # # # # # # # 
-    nr = 0
-    @conn2 = new MeshbluXmpp @config2
-    @conn2.on 'message', (message) =>
-      if ++nr%@step==0 
-        console.log 'Receiving ' +nr+ ': '+ message.data.payload
-      if nr==1 
-        console.log 'Receiving first msg...'
-        @benchmark2 = new Benchmark label: 'receive msg'
-      @elapsedTimes2.push @benchmark2.elapsed()
-      if nr == @cycles * @numberOfConnection *1
-        @printResults2()
-    # # # # # # # # # # # # # # # # # # # # # # #
-    @ns = 0
-    @benchmark = new Benchmark label: 'connect'
-    async.timesSeries @cycles, @cycle, @printResults
+      nr = 0
+      @conn2 = new MeshbluXmpp @config2
+      @conn2.on 'message', (message) =>
+        if ++nr%(@step*@numberOfMsg)==0 
+          console.log 'Receiving ' +nr+ ': '+ message.data.payload
+        if nr==1 
+          console.log 'Receiving first msg...'
+          @benchmark2 = new Benchmark label: 'receive msg'
+        @elapsedTimes2.push @benchmark2.elapsed()
+        if nr == @cycles * @numberOfConnection * @numberOfMsg
+          @printResults2()
+      # # # # # # # # # # # # # # # # # # # # # # #
+      @ns = 0
+      @benchmark = new Benchmark label: 'connect'
+      async.timesSeries @cycles, @cycle, @printResults
 
   cycle: (i, callback) =>
     async.times @numberOfConnection, @authenticate, callback
@@ -82,22 +88,23 @@ class CommandXmppSend
 
   parseInt: (str) => parseInt str
 
-  xmppsend: () =>
-    message = 
-          "devices": [@conn2.uuid],
-          "payload": "new message from 1"
-    @conn.message message, (error) =>  
+  xmppsend: (i, callback) =>
+    @conn.message @message, (error) =>  
       if error?
         console.log error.response
+      callback()
       # else
-      #   console.log 'msg sent!'
+      #   console.log 'mesg sent!'
 
   printResults: () => #(error) =>
     #return @die error if error?
-    
-    #for num in [5..1]
-    async.times 1, @xmppsend
-          
+    @conn = new MeshbluXmpp @config
+    @conn.connect (error) =>
+      #for num in [5..1]
+      # if @onlySend
+      async.times @numberOfMsg, @xmppsend
+      # else
+      #   @xmppsend()          
 
     elapsedTime = @benchmark.elapsed()
     averagePerSecond = (_.size @statusCodes) / (elapsedTime / 1000)
@@ -133,11 +140,11 @@ class CommandXmppSend
     
   printResults2: () => #(error) =>
     elapsedTime = @benchmark2.elapsed()
-    averagePerSecond = (@cycles * @numberOfConnection) / (elapsedTime / 1000)
+    averagePerSecond = (@cycles * @numberOfConnection * @numberOfMsg) / (elapsedTime / 1000)
 
     generalTable = new Table
     generalTable.push
-      'total msg receive'    : "#{@numberOfConnection * @cycles}"
+      'total msg receive'    : "#{@numberOfConnection * @cycles * @numberOfMsg}"
     ,
       'took'                 : "#{elapsedTime}ms"
     ,
