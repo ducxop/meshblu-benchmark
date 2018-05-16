@@ -10,17 +10,19 @@ MeshbluXmpp   = require 'meshblu-xmpp'
 class CommandXmppSend
   parseOptions: =>
     commander
-      .option '-c, --cycles [n]', 'number of cycles to run (defaults to 1)', @parseInt, 1
+      .option '-t, --total-times [n]', 'create connection in total time (default to 0s)', @parseInt, 0
+      .option '-i, --interval [n]', 'create connection with interval (default 1s)', @parseInt, 10
       .option '-n, --number-of-connection [n]', 'Number of parallel connections (defaults to 1000)', @parseInt, 1000
       .option '-s, --step [n]', 'display step (defaults to 200)', @parseInt, 200
       .option '-m, --number-of-msg [n]', 'number of parallel messages (defaults to 1)', @parseInt, 1
       .option '-o, --only-send'
       .parse process.argv
 
-    {@step,@numberOfConnection,@cycles,@onlySend,@numberOfMsg} = commander
+    {@totalTimes,@interval,@step,@numberOfConnection,@onlySend,@numberOfMsg} = commander
 
   run: ->
     @parseOptions()
+    @interval = @interval * 1000
     @statusCodes = []
     @elapsedTimes = []
     @elapsedTimes2 = []
@@ -34,16 +36,29 @@ class CommandXmppSend
       port: 5222
       uuid: 'a1c383b7-931b-4d74-a109-ce57634f6a25'
       token: '6fa96222fd6a0c519ed8c73e053ff36d17e02775'
-    
+    msg = @totalTimes
     @message = 
-      "devices": [@config2.uuid],
-      "payload": "new message ~"
+      devices: [@config2.uuid],
+      payload: msg
     if @onlySend
       console.log 'only send'
       @conn = new MeshbluXmpp @config
       @conn.connect (error) =>
-        console.log 'Device 1 connected'
-        async.times @numberOfMsg, @xmppsend, () => process.exit 0
+        if @totalTimes>0&&@interval>0
+          sendMsg = () =>
+            if msg>0
+              @message.payload = msg
+              async.times @numberOfMsg, @xmppsend, () => msg--
+          intervalObj = setInterval sendMsg, @interval
+          stopSend = () =>
+            if msg==0
+              clearInterval(intervalObj)
+              process.exit 0
+            else
+              setTimeout stopSend, @interval
+          setTimeout stopSend, @totalTimes*@interval
+        else
+          async.times @numberOfMsg, @xmppsend, () => process.exit 0
     else
     # # # # # # # # # # # # # # # # # # # # # # 
       nr = 0
@@ -55,15 +70,14 @@ class CommandXmppSend
           console.log 'Receiving first msg...'
           @benchmark2 = new Benchmark label: 'receive msg'
         @elapsedTimes2.push @benchmark2.elapsed()
-        if nr == @cycles * @numberOfConnection * @numberOfMsg
+        if nr == @numberOfConnection * @numberOfMsg
           @printResults2()
       # # # # # # # # # # # # # # # # # # # # # # #
       @ns = 0
       @benchmark = new Benchmark label: 'connect'
-      async.timesSeries @cycles, @cycle, @printResults
-
-  cycle: (i, callback) =>
-    async.times @numberOfConnection, @authenticate, callback
+  #     async.timesSeries @cycles, @cycle, @printResults
+  # cycle: (i, callback) =>
+      async.times @numberOfConnection, @authenticate, @printResults
 
   authenticate: (i, callback) =>  
     benchmark = new Benchmark label: 'sending'
@@ -108,11 +122,11 @@ class CommandXmppSend
 
     elapsedTime = @benchmark.elapsed()
     averagePerSecond = (_.size @statusCodes) / (elapsedTime / 1000)
-    messageLoss = 1 - (_.size(@statusCodes) / (@cycles * @numberOfConnection))
+    messageLoss = 1 - (_.size(@statusCodes) / (@numberOfConnection))
 
     generalTable = new Table
     generalTable.push
-      'total connection'     : "#{@numberOfConnection * @cycles}"
+      'total connection'     : "#{@numberOfConnection}"
     ,
       'took'                 : "#{elapsedTime}ms"
     ,
@@ -140,11 +154,11 @@ class CommandXmppSend
     
   printResults2: () => #(error) =>
     elapsedTime = @benchmark2.elapsed()
-    averagePerSecond = (@cycles * @numberOfConnection * @numberOfMsg) / (elapsedTime / 1000)
+    averagePerSecond = (@numberOfConnection * @numberOfMsg) / (elapsedTime / 1000)
 
     generalTable = new Table
     generalTable.push
-      'total msg receive'    : "#{@numberOfConnection * @cycles * @numberOfMsg}"
+      'total msg receive'    : "#{@numberOfConnection * @numberOfMsg}"
     ,
       'took'                 : "#{elapsedTime}ms"
     ,

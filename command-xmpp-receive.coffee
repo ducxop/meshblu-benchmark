@@ -5,6 +5,7 @@ Table         = require 'cli-table'
 async         = require 'async'
 _             = require 'lodash'
 commander			= require 'commander'
+now        = require 'performance-now'
 
 config = 
     hostname: '192.168.105.221',
@@ -21,6 +22,8 @@ benchmark = {}
 conn = {}
 nr = 0
 n = 0
+arr = []
+bench = []
 
 myParseInt = (string, defaultValue) ->
   int = parseInt(string, 10)
@@ -29,16 +32,20 @@ myParseInt = (string, defaultValue) ->
   else
     defaultValue
 
-@parseInt = (str) => parseInt str, 10
+#@parseInt = (str) => parseInt str, 10
 
 commander
-	.option '-n, --number-of-connection [n]', 'number of connection (default to 5000)', @parseInt, 5000
-	.option '-s, --step [n]', 'display step (defaults to 1000)', @parseInt, 1000
-	.option '-m, --number-of-msg [n]', 'number of parallel messages (defaults to 5000)', @parseInt, 5000
+  .option '-t, --total-times [n]', 'create connection in total times (default to 0)', myParseInt, 0
+  .option '-i, --interval [n]', 'create connection with interval between each time(default 10s)', myParseInt, 10
+	.option '-n, --number-of-connection [n]', 'number of connection at a time (default to 5000)', myParseInt, 5000
+	.option '-s, --step [n]', 'display step (defaults to 1000)', myParseInt, 1000
+	.option '-m, --number-of-msg [n]', 'number of parallel messages (defaults to 1)', myParseInt, 1
 	.parse process.argv
 
-{numberOfConnection,step,numberOfMsg} = commander
-
+{totalTimes,interval,numberOfConnection,step,numberOfMsg} = commander
+totalTimes = totalTimes
+interval = interval*1000
+totalConnection = 0
 conn = new Meshblu(config2);
 
 createConnection = (i, callback) ->
@@ -47,25 +54,41 @@ createConnection = (i, callback) ->
 		console.log 'start connecting:' if n == 1
   callback()
 
-async.times numberOfConnection, createConnection, () => 
-#async.times 1000, createConnection, () => 
-	console.log 'start receiving:'
+startConnect = () ->
+  if totalConnection<numberOfConnection*totalTimes
+    async.times numberOfConnection, createConnection, () => 
+      #console.log 'start receiving:'
+      totalConnection += numberOfConnection
+      #console.log totalConnection, ' connected!'
 
-conn.on 'message', (message) =>
-	console.log 'receiving ', nr if ++nr%(step*numberOfMsg)==0
-	benchmark = new Benchmark label: 'receive msg' if nr == 1
-	#console.log 'Message Received: ', message.data.payload
-	printResults() if nr == numberOfMsg * numberOfConnection
+if totalTimes>0 && interval>0
+  intervalObj = setInterval startConnect, interval
+  stopConnect = () ->
+    if totalConnection==totalTimes*numberOfConnection
+      clearInterval intervalObj
+      console.log 'start receiving: ~'
+    else
+      setTimeout stopConnect, interval
+  setTimeout stopConnect, totalTimes*interval
+else
+  startConnect()
 
-printResults = () => #(error) =>
+printResults = (id) => #(error) =>
     #return @die error if error?
-    elapsedTime = benchmark.elapsed()
-    averagePerSecond = n / (elapsedTime / 1000)
+    if id?
+      elapsedTime = bench[id].elapsed()
+      totalmsg = arr[id]
+      console.log "Receiving Results - ", id
+    else
+      elapsedTime = benchmark.elapsed()
+      totalmsg = nr
+      console.log "Total Results: "
+    averagePerSecond = totalmsg / (elapsedTime / 1000)
     #messageLoss = 1 - (_.size(@statusCodes) / (@cycles * @numberOfMessages))
 
     generalTable = new Table
     generalTable.push
-      'total msg receive'    : "#{n}"
+      'total msg receive'    : "#{totalmsg}"
     ,
       'took'                 : "#{elapsedTime}ms"
     ,
@@ -82,12 +105,9 @@ printResults = () => #(error) =>
         nthPercentile(90, @elapsedTimes2)
         ]
 
-    console.log "Receiving Results:"
     console.log generalTable.toString()
     #console.log percentileTable.toString()
     
-    process.exit 0
-
 nthPercentile = (percentile, array) =>
     array = _.sortBy array
     index = (percentile / 100) * _.size(array)
@@ -95,3 +115,25 @@ nthPercentile = (percentile, array) =>
       return (array[index-1] + array[index]) / 2
 
     return array[Math.floor index]
+
+totalMsgSend = 0
+conn.on 'message', (message) =>
+  id = parseInt(message.data.payload)
+  unless isNaN id
+    if arr[id]?
+      #console.log 'id, arr[id] ', id, arr[id]
+      if ++arr[id]==totalConnection*numberOfMsg
+        printResults(id)
+    else
+      arr[id]=1
+      #console.log 'id, arr[id] new ', id, arr[id]
+      bench[id] = new Benchmark label:id
+  if ++nr%(step*numberOfMsg)==0 then console.log 'receiving ', nr
+  if nr==1
+    totalMsgSend = id
+    benchmark = new Benchmark label:'total benchmark'
+  #console.log nr,numberOfMsg,totalConnection,totalTimes
+  if nr==(numberOfMsg*totalConnection*totalMsgSend)
+    printResults()
+    process.exit 0  
+	
