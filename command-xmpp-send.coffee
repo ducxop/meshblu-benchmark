@@ -51,11 +51,11 @@ class CommandXmppSend
               async.times @numberOfMsg, @xmppsend, () => msg--
           intervalObj = setInterval sendMsg, @interval
           stopSend = () =>
-            if msg==0
+            if msg<1
               clearInterval(intervalObj)
               process.exit 0
             else
-              setTimeout stopSend, @interval
+              setTimeout stopSend, 500
           setTimeout stopSend, @totalTimes*@interval
         else
           async.times @numberOfMsg, @xmppsend, () => process.exit 0

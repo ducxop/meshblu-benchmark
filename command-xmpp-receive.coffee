@@ -46,6 +46,9 @@ commander
 totalTimes = totalTimes
 interval = interval*1000
 totalConnection = 0
+dConnected = {}
+dReceived = {}
+dStartR = {}
 conn = new Meshblu(config2);
 
 createConnection = (i, callback) ->
@@ -60,15 +63,17 @@ startConnect = () ->
       #console.log 'start receiving:'
       totalConnection += numberOfConnection
       #console.log totalConnection, ' connected!'
+dStartC = new Date()
 
 if totalTimes>0 && interval>0
   intervalObj = setInterval startConnect, interval
   stopConnect = () ->
     if totalConnection==totalTimes*numberOfConnection
       clearInterval intervalObj
+      dConnected = new Date()
       console.log 'start receiving: ~'
     else
-      setTimeout stopConnect, interval
+      setTimeout stopConnect, 500
   setTimeout stopConnect, totalTimes*interval
 else
   startConnect()
@@ -82,7 +87,7 @@ printResults = (id) => #(error) =>
     else
       elapsedTime = benchmark.elapsed()
       totalmsg = nr
-      console.log "Total Results: "
+      console.log "Final Results: "
     averagePerSecond = totalmsg / (elapsedTime / 1000)
     #messageLoss = 1 - (_.size(@statusCodes) / (@cycles * @numberOfMessages))
 
@@ -118,6 +123,7 @@ nthPercentile = (percentile, array) =>
 
 totalMsgSend = 0
 conn.on 'message', (message) =>
+  if ++nr%(step*numberOfMsg)==0 then console.log 'receiving ', nr
   id = parseInt(message.data.payload)
   unless isNaN id
     if arr[id]?
@@ -128,12 +134,17 @@ conn.on 'message', (message) =>
       arr[id]=1
       #console.log 'id, arr[id] new ', id, arr[id]
       bench[id] = new Benchmark label:id
-  if ++nr%(step*numberOfMsg)==0 then console.log 'receiving ', nr
   if nr==1
     totalMsgSend = id
+    dStartR = new Date()
     benchmark = new Benchmark label:'total benchmark'
   #console.log nr,numberOfMsg,totalConnection,totalTimes
   if nr==(numberOfMsg*totalConnection*totalMsgSend)
+    dReceived = new Date()
+    console.log 'Start Connecting: ', dStartC.toString()
+    console.log 'Finish Connecting: ', dConnected.toString()
     printResults()
+    console.log 'Received 1st msg: ', dStartR.toString()
+    console.log 'Received last msg: ', dReceived.toString()
     process.exit 0  
 	
