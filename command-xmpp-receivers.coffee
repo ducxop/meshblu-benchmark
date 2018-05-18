@@ -143,9 +143,9 @@ nthPercentile = (percentile, array) =>
 receiving = ()=>
   totalMsgSend = 0
   for i in [0...totalTimes*numberOfDevices]
-    console.log 'listen from ', conn[i].uuid
+    #console.log 'listen from ', conn[i].uuid
     conn[i].on 'message', (message) =>
-      console.log message.data.payload
+      #console.log message.data.payload
       if ++nr%(step*numberOfMsg)==0 then console.log 'receiving ', nr
       id = parseInt(message.data.payload)
       unless isNaN id
