@@ -10,15 +10,16 @@ MeshbluXmpp   = require 'meshblu-xmpp'
 class CommandXmppSend
   parseOptions: =>
     commander
-      .option '-t, --total-times [n]', 'create connection in total time (default to 0s)', @parseInt, 0
-      .option '-i, --interval [n]', 'create connection with interval (default 1s)', @parseInt, 10
+      .option '-t, --total-times [n]', 'create connection in total time (default to 1)', @parseInt, 1
+      .option '-i, --interval [n]', 'create connection with interval (default 10)', @parseInt, 10
       .option '-n, --number-of-connection [n]', 'Number of parallel connections (defaults to 1000)', @parseInt, 1000
       .option '-s, --step [n]', 'display step (defaults to 200)', @parseInt, 200
       .option '-m, --number-of-msg [n]', 'number of parallel messages (defaults to 1)', @parseInt, 1
       .option '-o, --only-send'
+      .option '-a, --all'
       .parse process.argv
 
-    {@totalTimes,@interval,@step,@numberOfConnection,@onlySend,@numberOfMsg} = commander
+    {@totalTimes,@interval,@step,@numberOfConnection,@onlySend,@numberOfMsg,@all} = commander
 
   run: ->
     @parseOptions()
@@ -40,11 +41,16 @@ class CommandXmppSend
     @message = 
       devices: [@config2.uuid],
       payload: msg
-    if @onlySend
-      console.log 'only send'
+    if @onlySend or @all
+      console.log 'Sending msg...'
+      if @all
+        @config.token = "14fc2e1668410784f75ba8c946e4a4b6cac3989f"
+        @config.uuid= "037dd8ef-19e7-4b44-8172-f2813f0c245c"
+        @message.devices=["*"]
       @conn = new MeshbluXmpp @config
       @conn.connect (error) =>
-        if @totalTimes>0&&@interval>0
+        console.log 'connectedddd'
+        if @totalTimes>1&&@interval>0
           sendMsg = () =>
             if msg>0
               @message.payload = msg
@@ -103,12 +109,12 @@ class CommandXmppSend
   parseInt: (str) => parseInt str
 
   xmppsend: (i, callback) =>
+    console.log @conn.uuid, @message
     @conn.message @message, (error) =>  
       if error?
         console.log error.response
       callback()
       # else
-      #   console.log 'mesg sent!'
 
   printResults: () => #(error) =>
     #return @die error if error?
