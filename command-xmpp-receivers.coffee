@@ -7,6 +7,7 @@ _             = require 'lodash'
 commander			= require 'commander'
 now           = require 'performance-now'
 devices       = require('./300kdevices.json').devices
+
 config = 
     hostname: '192.168.105.221',
     port: 5222,
@@ -38,9 +39,10 @@ commander
 	.option '-n, --number-of-devices [n]', 'number of devices to connect at a time (default to 1000)', myParseInt, 1000
 	.option '-s, --step [n]', 'display step (defaults to 500)', myParseInt, 500
 	.option '-m, --number-of-msg [n]', 'number of parallel messages (defaults to 1)', myParseInt, 1
+  .option '-o, --offset [n]','uuid offset value (default to 0)', myParseInt, 0
 	.parse process.argv
 
-{totalTimes,interval,numberOfDevices,step,numberOfMsg} = commander
+{totalTimes,interval,numberOfDevices,step,numberOfMsg,offset} = commander
 totalTimes = totalTimes
 interval = interval*1000
 totalConnection = 0
@@ -55,8 +57,8 @@ createConnections = () ->
   else if nS==0
     console.log "connecting "
   for i in [numberOfDevices*nS...numberOfDevices*++nS]
-    config.uuid = devices[i].uuid
-    config.token = devices[i].token
+    config.uuid = devices[i+offset].uuid
+    config.token = devices[i+offset].token
     conn[i] = new Meshblu(config)
     conn[i].connect (err)=>
       if ++n%step==0 then console.log "connecting ", n
@@ -78,7 +80,6 @@ startConnect = () ->
   #   async.each devices.slice(n,n+numberOfDevices), createConnection, () => 
   #     console.timeEnd 'connect'
   #     totalConnection += numberOfDevices
-      
 
 dStartC = new Date()
 console.time 'connect'
@@ -137,7 +138,6 @@ nthPercentile = (percentile, array) =>
     index = (percentile / 100) * _.size(array)
     if Math.floor(index) == index
       return (array[index-1] + array[index]) / 2
-
     return array[Math.floor index]
 
 receiving = ()=>
@@ -166,8 +166,7 @@ receiving = ()=>
         dReceived = new Date()
         console.log 'Start Connecting: ', dStartC.toString()
         console.log 'Finish Connecting: ', dConnected.toString()
-        printResults()
+        if id>1 then printResults()
         console.log 'Received 1st msg: ', dStartR.toString()
         console.log 'Received last msg: ', dReceived.toString()
         process.exit 0  
-	
