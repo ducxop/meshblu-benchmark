@@ -39,7 +39,7 @@ commander
 	.option '-n, --number-of-devices [n]', 'number of devices to connect at a time (default to 1000)', myParseInt, 1000
 	.option '-s, --step [n]', 'display step (defaults to 500)', myParseInt, 500
 	.option '-m, --number-of-msg [n]', 'number of parallel messages (defaults to 1)', myParseInt, 1
-  .option '-o, --offset [n]','uuid offset value (default to 0)', myParseInt, 0
+  .option '-o, --offset [n]','devices uuid offset value (default to 0)', myParseInt, 0
 	.parse process.argv
 
 {totalTimes,interval,numberOfDevices,step,numberOfMsg,offset} = commander
