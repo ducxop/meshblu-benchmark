@@ -11,11 +11,11 @@ devices       = require('./300kdevices.json').devices
 config = 
     hostname: '192.168.105.221',
     port: 5222,
-config2 =
-    hostname: '192.168.105.221',
-    port: 5222,
-    token: "14fc2e1668410784f75ba8c946e4a4b6cac3989f", 
-    uuid: "037dd8ef-19e7-4b44-8172-f2813f0c245c"
+# config2 =
+#     hostname: '192.168.105.221',
+#     port: 5222,
+#     token: "14fc2e1668410784f75ba8c946e4a4b6cac3989f", 
+#     uuid: "037dd8ef-19e7-4b44-8172-f2813f0c245c"
 benchmark = {}
 conn = {}
 nr = 0

@@ -38,6 +38,7 @@ class CommandXmppSend
       uuid: 'a1c383b7-931b-4d74-a109-ce57634f6a25'
       token: '6fa96222fd6a0c519ed8c73e053ff36d17e02775'
     msg = @totalTimes
+    nSent = @totalTimes
     @message = 
       devices: [@config2.uuid],
       payload: msg
@@ -53,15 +54,15 @@ class CommandXmppSend
         if @totalTimes>1&&@interval>0
           sendMsg = () =>
             if msg>0
-              @message.payload = msg
-              async.times @numberOfMsg, @xmppsend, () => msg--
+              @message.payload = msg--
+              async.times @numberOfMsg, @xmppsend, () => nSent--
           intervalObj = setInterval sendMsg, @interval
           stopSend = () =>
-            if msg<1
-              clearInterval(intervalObj)
+            if nSent==0
+              clearInterval intervalObj
               process.exit 0
             else
-              setTimeout stopSend, 500
+              setTimeout stopSend, 1000
           setTimeout stopSend, @totalTimes*@interval
         else
           async.times @numberOfMsg, @xmppsend, () => process.exit 0
