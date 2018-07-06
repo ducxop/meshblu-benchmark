@@ -17,31 +17,35 @@ class CommandXmppSend
       .option '-m, --number-of-msg [n]', 'number of parallel messages (defaults to 1)', @parseInt, 1
       .option '-o, --only-send'
       .option '-a, --all'
+      .option '-p, --payload-id [n]', 'custom payload id', @parseInt, 0
       .parse process.argv
 
-    {@totalTimes,@interval,@step,@numberOfConnection,@onlySend,@numberOfMsg,@all} = commander
+    {@totalTimes,@interval,@step,@numberOfConnection,@onlySend,@numberOfMsg,@all,@payloadId} = commander
 
   run: ->
+    startD = new Date()
+    console.log startD.toString()
     @parseOptions()
     @interval = @interval * 1000
     @statusCodes = []
     @elapsedTimes = []
     @elapsedTimes2 = []
     @config = 
-      hostname: '192.168.105.221'
+      hostname: '192.168.105.222'
       port: 5222
       uuid: 'cea58c41-aaa0-46d8-ac9e-2ebc90eeaefe'
       token: 'fc23d79499edec704aa0034538e2b1f588e463ea'
     @config2 = 
-      hostname: '192.168.105.221'
+      hostname: '192.168.105.222'
       port: 5222
       uuid: 'a1c383b7-931b-4d74-a109-ce57634f6a25'
       token: '6fa96222fd6a0c519ed8c73e053ff36d17e02775'
-    msg = @totalTimes
-    nSent = @totalTimes
+    @msg = @totalTimes
+    @nSent = @totalTimes*@numberOfMsg
+    nCall = @totalTimes
     @message = 
       devices: [@config2.uuid],
-      payload: msg
+      payload: @msg
     if @onlySend or @all
       console.log 'Sending msg...'
       if @all
@@ -53,18 +57,24 @@ class CommandXmppSend
         console.log 'connectedddd'
         if @totalTimes>1&&@interval>0
           sendMsg = () =>
-            if msg>0
-              @message.payload = msg--
-              async.times @numberOfMsg, @xmppsend, () => nSent--
+            if nCall-->0
+              @message.payload = @msg--
+              async.times @numberOfMsg, @xmppsend, () => console.log 'nSENT after asyncTimes:', @nSent
           intervalObj = setInterval sendMsg, @interval
+          count=0
           stopSend = () =>
-            if nSent==0
+            if nCall<1
               clearInterval intervalObj
-              process.exit 0
+              console.log 'Stop pushing msg'
+              #process.exit 0
             else
+              console.log @nSent, 'Wait...', count++
               setTimeout stopSend, 1000
           setTimeout stopSend, @totalTimes*@interval
         else
+          if @payloadId>0
+            @message.payload = @payloadId
+            console.log @payloadId
           async.times @numberOfMsg, @xmppsend, () => process.exit 0
     else
     # # # # # # # # # # # # # # # # # # # # # # 
@@ -110,10 +120,19 @@ class CommandXmppSend
   parseInt: (str) => parseInt str
 
   xmppsend: (i, callback) =>
-    console.log @conn.uuid, @message
+    # mess = @message
+    # mess.payload = @msg--
+    console.log 'Sending...', @conn.uuid, @message
     @conn.message @message, (error) =>  
       if error?
         console.log error.response
+      @nSent--
+      console.log 'nSent after xmppsend', @nSent
+      if @nSent<1 
+        console.log 'nSent EXIT', @nSent
+        endD = new Date()
+        console.log endD.toString()
+        process.exit 0
       callback()
       # else
 

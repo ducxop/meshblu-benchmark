@@ -8,13 +8,13 @@ commander			= require 'commander'
 now        = require 'performance-now'
 
 config = 
-    hostname: '192.168.105.221',
+    hostname: '192.168.105.222',
     port: 5222,
     uuid: 'cea58c41-aaa0-46d8-ac9e-2ebc90eeaefe',
     token: 'fc23d79499edec704aa0034538e2b1f588e463ea'
 
 config2 =
-    hostname: '192.168.105.221',
+    hostname: '192.168.105.222',
     port: 5222,
     uuid: 'a1c383b7-931b-4d74-a109-ce57634f6a25',
     token: '6fa96222fd6a0c519ed8c73e053ff36d17e02775'
@@ -76,7 +76,7 @@ if totalTimes>0 && interval>0
       setTimeout stopConnect, 500
   setTimeout stopConnect, totalTimes*interval
 else
-  startConnect()
+  startConnect()hy8u jm9ikp
 
 printResults = (id) => #(error) =>
     #return @die error if error?
